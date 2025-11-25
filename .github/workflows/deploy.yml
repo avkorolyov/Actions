@@ -6,8 +6,8 @@ on:
       - main
 
 jobs:
-  build:
-    name: Build and Push Docker Image
+  build-backend:
+    name: Build and Push Backend
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -27,17 +27,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
+      - name: Extract metadata for Backend
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
+          images: ghcr.io/avkorolyov/actions
           tags: |
             type=ref,event=branch
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push Docker image
+      - name: Build and push Backend
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -45,10 +45,49 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
+  build-frontend:
+    name: Build and Push Frontend
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for Frontend
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/avkorolyov/actions-frontend
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
   deploy:
     name: Deploy to Server
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build-backend, build-frontend]
     if: github.ref == 'refs/heads/main'
 
     steps:
@@ -59,31 +98,38 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # Логин в GitHub Container Registry (если образ приватный)
-            # Используется GHCR_TOKEN из секретов репозитория
-            # Если образ публичный, логин не требуется
-            if [ -n "${{ secrets.GHCR_TOKEN }}" ]; then
-              echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            fi
+            # Остановка и удаление старых контейнеров
+            docker stop flask-backend flask-frontend || true
+            docker rm flask-backend flask-frontend || true
             
-            # Остановка и удаление старого контейнера (если существует)
-            docker stop my-flask-app || true
-            docker rm my-flask-app || true
-            
-            # Удаление старого образа (опционально, для экономии места)
+            # Удаление старых образов
             docker image prune -f
             
-            # Загрузка нового образа из GitHub Container Registry
+            # Загрузка новых образов
             docker pull ghcr.io/avkorolyov/actions:latest
+            docker pull ghcr.io/avkorolyov/actions-frontend:latest
             
-            # Запуск нового контейнера
+            # Создание сети (если не существует)
+            docker network create flask-app-net || true
+            
+            # Запуск backend
             docker run -d \
-              --name my-flask-app \
+              --name flask-backend \
+              --network flask-app-net \
               --restart unless-stopped \
               -p 5001:5001 \
               -e PORT=5001 \
               ghcr.io/avkorolyov/actions:latest
             
-            # Проверка статуса контейнера
-            docker ps | grep my-flask-app
-
+            # Запуск frontend
+            docker run -d \
+              --name flask-frontend \
+              --network flask-app-net \
+              --restart unless-stopped \
+              -p 4173:4173 \
+              -e PORT=4173 \
+              -e BACKEND_URL=http://flask-backend:5001 \
+              ghcr.io/avkorolyov/actions-frontend:latest
+            
+            # Проверка статуса контейнеров
+            docker ps | grep -E "flask-backend|flask-frontend"

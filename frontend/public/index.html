@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Flask Math Dashboard</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Сервис проверки контейнера</h1>
+        <p>Следите за состоянием Flask-бэкенда и выполняйте операции.</p>
+      </header>
+
+      <section class="card" id="status-card">
+        <div class="card-header">
+          <h2>Общая информация</h2>
+          <button id="refresh-info">Обновить</button>
+        </div>
+        <div class="card-body">
+          <pre id="info-output">Загрузка...</pre>
+        </div>
+      </section>
+
+      <section class="card" id="math-card">
+        <div class="card-header">
+          <h2>Калькулятор</h2>
+        </div>
+        <form id="math-form">
+          <label>
+            Первое число
+            <input type="number" step="any" name="a" required />
+          </label>
+          <label>
+            Второе число
+            <input type="number" step="any" name="b" required />
+          </label>
+          <label>
+            Операция
+            <select name="operation">
+              <option value="multiply">Умножить</option>
+              <option value="divide">Делить</option>
+            </select>
+          </label>
+          <button type="submit">Посчитать</button>
+        </form>
+        <div class="card-body">
+          <pre id="math-output">Результат появится здесь.</pre>
+        </div>
+      </section>
+    </main>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
+

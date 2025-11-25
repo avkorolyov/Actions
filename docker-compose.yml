@@ -1,0 +1,39 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ghcr.io/avkorolyov/actions:latest
+    container_name: flask-backend
+    environment:
+      - PORT=5001
+    ports:
+      - "5001:5001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: ghcr.io/avkorolyov/actions-frontend:latest
+    container_name: flask-frontend
+    environment:
+      - PORT=4173
+      - BACKEND_URL=http://backend:5001
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "4173:4173"
+    restart: unless-stopped
+
+networks:
+  default:
+    name: flask-app-net
+
