@@ -63,7 +63,8 @@ Actions/
 │   └── server.js                # Express сервер с proxy
 ├── screenshots/
 │   ├── Скрин github actions.png # Скриншот GitHub Actions
-│   └── Скрин HTTP-обработчика.png # Скриншот работы приложения
+│   ├── Скрин Backend API.png    # Скриншот Backend API
+│   └── Скрин Frontend UI.png    # Скриншот Frontend UI
 ├── app.py                       # Flask backend
 ├── Dockerfile                   # Dockerfile для backend
 ├── docker-compose.yml           # Docker Compose конфигурация
@@ -80,8 +81,11 @@ Actions/
 ### GitHub Actions Workflow
 ![GitHub Actions](screenshots/Скрин%20github%20actions.png)
 
-### Работа HTTP-обработчика
-![HTTP Handler](screenshots/Скрин%20HTTP-обработчика.png)
+### Backend API
+![Backend API](screenshots/Скрин%20Backend%20API.png)
+
+### Frontend UI
+![Frontend UI](screenshots/Скрин%20Frontend%20UI.png)
 
 ## 🔌 API Эндпоинты
 
