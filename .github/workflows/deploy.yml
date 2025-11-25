@@ -31,7 +31,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
+          images: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
           tags: |
             type=ref,event=branch
             type=sha,prefix={{branch}}-
@@ -74,7 +74,7 @@ jobs:
             docker image prune -f
             
             # Загрузка нового образа из GitHub Container Registry
-            docker pull ghcr.io/${{ github.repository }}:latest
+            docker pull ghcr.io/avkorolyov/actions:latest
             
             # Запуск нового контейнера
             docker run -d \
@@ -82,7 +82,7 @@ jobs:
               --restart unless-stopped \
               -p 5001:5001 \
               -e PORT=5001 \
-              ghcr.io/${{ github.repository }}:latest
+              ghcr.io/avkorolyov/actions:latest
             
             # Проверка статуса контейнера
             docker ps | grep my-flask-app
