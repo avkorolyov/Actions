@@ -1,0 +1,89 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # Логин в GitHub Container Registry (если образ приватный)
+            # Используется GHCR_TOKEN из секретов репозитория
+            # Если образ публичный, логин не требуется
+            if [ -n "${{ secrets.GHCR_TOKEN }}" ]; then
+              echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            fi
+            
+            # Остановка и удаление старого контейнера (если существует)
+            docker stop my-flask-app || true
+            docker rm my-flask-app || true
+            
+            # Удаление старого образа (опционально, для экономии места)
+            docker image prune -f
+            
+            # Загрузка нового образа из GitHub Container Registry
+            docker pull ghcr.io/${{ github.repository }}:latest
+            
+            # Запуск нового контейнера
+            docker run -d \
+              --name my-flask-app \
+              --restart unless-stopped \
+              -p 5001:5001 \
+              -e PORT=5001 \
+              ghcr.io/${{ github.repository }}:latest
+            
+            # Проверка статуса контейнера
+            docker ps | grep my-flask-app
+
