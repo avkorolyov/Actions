@@ -31,3 +31,6 @@ logs/
 # Docker
 .dockerignore
 
+# Internal docs (не для дистрибутива)
+internal/
+
